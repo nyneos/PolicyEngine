@@ -40,8 +40,8 @@ func main() {
 	mux := http.NewServeMux()
 	api.RegisterHandlers(mux)
 
-	handler := auth.Middleware(mux)
-	logger.Startup("starting on :%s", port)
+	handler := logger.HTTPMiddleware(auth.Middleware(mux))
+	logger.Startup("starting on :%s (pipeline_log=%v)", port, logger.Enabled())
 	if err := http.ListenAndServe(":"+port, handler); err != nil {
 		log.Fatal(err)
 	}

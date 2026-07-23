@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"time"
 
 	"PolicyService/internal/model"
 )
@@ -119,6 +120,9 @@ func evalThreshold(p model.PolicySnapshot, vars map[string]string, base model.Po
 	if !ok || strings.TrimSpace(raw) == "" {
 		return nullResult(p, base, p.ThrVariable)
 	}
+	if strings.TrimSpace(p.ThrValueDate) != "" {
+		return evalThresholdDate(p, raw, base)
+	}
 	val, err := strconv.ParseFloat(raw, 64)
 	if err != nil {
 		base.Result = "ERROR"
@@ -149,6 +153,68 @@ func evalThreshold(p model.PolicySnapshot, vars map[string]string, base model.Po
 	base.Action = p.ActionOnBreach
 	base.Message = fmt.Sprintf("%s %s %v failed (actual=%v limit=%v)", p.ThrVariable, p.ThrOperator, limit, val, limit)
 	return base
+}
+
+// evalThresholdDate handles a threshold rule whose CDM variable is
+// date-typed (p.ThrValueDate set, not p.ThrValue). PercentOf doesn't apply
+// to dates — the frontend only offers Absolute mode when the selected
+// variable is a date, so that combination is not expected here.
+func evalThresholdDate(p model.PolicySnapshot, raw string, base model.PolicyResult) model.PolicyResult {
+	val, err := parseDateValue(raw)
+	if err != nil {
+		base.Result = "ERROR"
+		base.Message = "invalid date value for " + p.ThrVariable
+		return base
+	}
+	limit, err := parseDateValue(p.ThrValueDate)
+	if err != nil {
+		base.Result = "ERROR"
+		base.Message = "invalid policy threshold date for " + p.ThrVariable
+		return base
+	}
+
+	if compareDates(val, p.ThrOperator, limit) {
+		base.Result = "PASS"
+		return base
+	}
+	base.Result = "BREACH"
+	base.Action = p.ActionOnBreach
+	base.Message = fmt.Sprintf("%s %s %s failed (actual=%s)",
+		p.ThrVariable, p.ThrOperator, limit.Format("2006-01-02"), val.Format("2006-01-02"))
+	return base
+}
+
+// parseDateValue accepts either stringifyCDMValue's RFC3339 output (how a
+// time.Time-backed CDM field arrives) or a plain yyyy-mm-dd date (how a
+// policy's own ThrValueDate is stored/sent).
+func parseDateValue(raw string) (time.Time, error) {
+	raw = strings.TrimSpace(raw)
+	if t, err := time.Parse(time.RFC3339, raw); err == nil {
+		return t, nil
+	}
+	if t, err := time.Parse("2006-01-02", raw); err == nil {
+		return t, nil
+	}
+	return time.Time{}, fmt.Errorf("unrecognized date format: %q", raw)
+}
+
+func compareDates(val time.Time, op string, limit time.Time) bool {
+	switch op {
+	case "<":
+		return val.Before(limit)
+	case "<=":
+		return !val.After(limit)
+	case ">":
+		return val.After(limit)
+	case ">=":
+		return !val.Before(limit)
+	case "=":
+		return val.Equal(limit)
+	case "!=":
+		return !val.Equal(limit)
+	default:
+		return false
+	}
 }
 
 func evalList(p model.PolicySnapshot, vars map[string]string, base model.PolicyResult) model.PolicyResult {

@@ -32,6 +32,7 @@ curl -s -X POST http://localhost:8184/v1/health \
 |----------|---------|
 | `PORT` | Default `8184` |
 | `POLICY_SERVICE_KEY` | Shared secret with `cimplrcorpsaas` |
+| `POLICY_SERVICE_LOG` | Request/pipeline logs (`true`/`false`, default on) |
 
 CIMPLR `.env` must set:
 

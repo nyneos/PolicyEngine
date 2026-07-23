@@ -25,8 +25,11 @@ type PolicySnapshot struct {
 	ThrVariable    string  `json:"thr_variable,omitempty"`
 	ThrOperator    string  `json:"thr_operator,omitempty"`
 	ThrValue       float64 `json:"thr_value,omitempty"`
-	ThrValueMode   string  `json:"thr_value_mode,omitempty"`
-	ThrPercentBase string  `json:"thr_percent_base,omitempty"`
+	// ThrValueDate (yyyy-mm-dd) is set instead of ThrValue when the rule's
+	// CDM variable is date-typed — never both. evalThreshold branches on it.
+	ThrValueDate   string `json:"thr_value_date,omitempty"`
+	ThrValueMode   string `json:"thr_value_mode,omitempty"`
+	ThrPercentBase string `json:"thr_percent_base,omitempty"`
 	// Slabs
 	SlabVariable string     `json:"slab_variable,omitempty"`
 	SlabRows     []SlabRow  `json:"slab_rows,omitempty"`
